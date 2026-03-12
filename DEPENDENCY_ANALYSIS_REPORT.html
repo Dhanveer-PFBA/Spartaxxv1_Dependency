@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpartaxxVersion1.1 — Dependency Analysis Report</title>
+<style>
+  :root {
+    --bg: #f8f9fa; --card: #ffffff; --border: #dee2e6; --text: #212529;
+    --muted: #6c757d; --primary: #0d6efd; --danger: #dc3545; --warning: #ffc107;
+    --success: #198754; --info: #0dcaf0; --dark: #343a40;
+    --critical-bg: #f8d7da; --critical-border: #f5c2c7; --critical-text: #842029;
+    --high-bg: #fff3cd; --high-border: #ffecb5; --high-text: #664d03;
+    --medium-bg: #cff4fc; --medium-border: #b6effb; --medium-text: #055160;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: #fff; padding: 40px 0; text-align: center; }
+  .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 1rem; opacity: 0.8; }
+  .header .meta { display: flex; justify-content: center; gap: 30px; margin-top: 20px; flex-wrap: wrap; }
+  .header .meta-item { text-align: center; }
+  .header .meta-item .number { font-size: 1.5rem; font-weight: 700; color: var(--info); }
+  .header .meta-item .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+
+  /* Navigation */
+  .nav-bar { background: var(--dark); padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .nav-bar ul { list-style: none; display: flex; flex-wrap: wrap; max-width: 1200px; margin: 0 auto; padding: 0; }
+  .nav-bar li a { display: block; padding: 12px 16px; color: #adb5bd; text-decoration: none; font-size: 0.8rem; font-weight: 500; transition: all 0.2s; border-bottom: 2px solid transparent; }
+  .nav-bar li a:hover { color: #fff; background: rgba(255,255,255,0.05); border-bottom-color: var(--primary); }
+
+  /* Main Container */
+  .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+
+  /* Section */
+  .section { background: var(--card); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 30px; overflow: hidden; border: 1px solid var(--border); }
+  .section-header { padding: 20px 24px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); background: #f8f9fa; user-select: none; }
+  .section-header:hover { background: #e9ecef; }
+  .section-header .num { background: var(--primary); color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; }
+  .section-header h2 { font-size: 1.15rem; font-weight: 600; flex: 1; }
+  .section-header .toggle { font-size: 1.2rem; color: var(--muted); transition: transform 0.3s; }
+  .section.collapsed .section-header .toggle { transform: rotate(-90deg); }
+  .section-body { padding: 24px; }
+  .section.collapsed .section-body { display: none; }
+
+  /* Sub-section */
+  .subsection { margin-bottom: 24px; }
+  .subsection:last-child { margin-bottom: 0; }
+  .subsection h3 { font-size: 1rem; font-weight: 600; color: var(--dark); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #e9ecef; }
+  .subsection h4 { font-size: 0.9rem; font-weight: 600; color: var(--muted); margin: 16px 0 8px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 16px; }
+  thead th { background: #343a40; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid #e9ecef; vertical-align: top; }
+  tbody tr:hover { background: #f8f9fa; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* Code / Pre */
+  .tree { background: #1e1e2e; color: #cdd6f4; padding: 20px; border-radius: 8px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 0.78rem; overflow-x: auto; line-height: 1.5; white-space: pre; margin: 12px 0; }
+  .tree .comment { color: #6c7086; }
+  .tree .highlight { color: #89dceb; }
+  .tree .folder { color: #f9e2af; }
+  .tree .arrow { color: #a6e3a1; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .badge-critical { background: var(--critical-bg); color: var(--critical-text); border: 1px solid var(--critical-border); }
+  .badge-high { background: var(--high-bg); color: var(--high-text); border: 1px solid var(--high-border); }
+  .badge-medium { background: var(--medium-bg); color: var(--medium-text); border: 1px solid var(--medium-border); }
+
+  /* Dep file card */
+  .dep-card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .dep-card .file-name { font-family: 'Cascadia Code', monospace; font-size: 0.85rem; font-weight: 600; color: var(--primary); margin-bottom: 10px; }
+  .dep-card table { margin: 0; }
+  .dep-card thead th { background: #495057; font-size: 0.72rem; padding: 8px 10px; }
+  .dep-card tbody td { padding: 6px 10px; font-size: 0.8rem; }
+
+  /* Alert boxes */
+  .alert { padding: 14px 18px; border-radius: 8px; margin: 12px 0; font-size: 0.85rem; }
+  .alert-critical { background: var(--critical-bg); border-left: 4px solid var(--danger); color: var(--critical-text); }
+  .alert-warning { background: var(--high-bg); border-left: 4px solid var(--warning); color: var(--high-text); }
+  .alert-info { background: var(--medium-bg); border-left: 4px solid var(--info); color: var(--medium-text); }
+
+  /* Diagram box */
+  .diagram { background: #1e1e2e; color: #cdd6f4; padding: 20px; border-radius: 8px; font-family: 'Cascadia Code', monospace; font-size: 0.75rem; overflow-x: auto; line-height: 1.6; white-space: pre; margin: 12px 0; }
+
+  /* Footer */
+  .footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header h1 { font-size: 1.4rem; }
+    .header .meta { gap: 15px; }
+    .nav-bar ul { flex-direction: column; }
+    .section-body { padding: 16px; }
+    table { font-size: 0.75rem; }
+  }
+
+  /* Print */
+  @media print {
+    .nav-bar { display: none; }
+    .section.collapsed .section-body { display: block !important; }
+    .section { break-inside: avoid; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<div class="header">
+  <h1>SpartaxxVersion1.1</h1>
+  <div class="subtitle">Complete File-to-File Dependency Analysis Report</div>
+  <div class="meta">
+    <div class="meta-item"><div class="number">192</div><div class="label">Projects (.csproj)</div></div>
+    <div class="meta-item"><div class="number">5,073</div><div class="label">C# Files</div></div>
+    <div class="meta-item"><div class="number">1,595</div><div class="label">JS Files</div></div>
+    <div class="meta-item"><div class="number">275</div><div class="label">Config Files</div></div>
+    <div class="meta-item"><div class="number">97</div><div class="label">VB Files</div></div>
+  </div>
+</div>
+
+<!-- ========== NAVIGATION ========== -->
+<nav class="nav-bar">
+  <ul>
+    <li><a href="#sec1">Structure</a></li>
+    <li><a href="#sec2">Dependencies</a></li>
+    <li><a href="#sec3">Cross-Layer</a></li>
+    <li><a href="#sec4">Circular</a></li>
+    <li><a href="#sec5">High Risk</a></li>
+    <li><a href="#sec6">Hardcoded</a></li>
+    <li><a href="#sec7">External Libs</a></li>
+    <li><a href="#sec8">Issues</a></li>
+    <li><a href="#sec9">Recommendations</a></li>
+    <li><a href="#appendix">Appendix</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+
+<!-- ===================== SECTION 1: REPOSITORY STRUCTURE ===================== -->
+<div class="section" id="sec1">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">1</span>
+    <h2>Repository Structure</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>1.1 Top-Level Module Map</h3>
+      <div class="tree">SpartaxxVersion1.1/
+│
+├── <span class="folder">Spartaxx/</span>                          <span class="comment">← CORE: Main ASP.NET MVC Web App (20+ Areas)</span>
+│   ├── SPARTAXX/                      <span class="comment">← Web host (Global.asax, Web.config)</span>
+│   ├── Spartaxx.BusinessObjects/      <span class="comment">← Domain models (PTXbo* classes)</span>
+│   ├── Spartaxx.DataObjects/          <span class="comment">← ORM entities (PTXdo* + NHibernate)</span>
+│   ├── Spartaxx.BusinessService/      <span class="comment">← Business logic (PTXbs* singletons)</span>
+│   ├── Spartaxx.DataService/          <span class="comment">← Data access (PTXds* singletons)</span>
+│   ├── Spartaxx.Data.Common/          <span class="comment">← Repository base / DAO layer</span>
+│   ├── Spartaxx.CommonInterface/      <span class="comment">← Interface contracts</span>
+│   ├── Spartaxx.Utilities/            <span class="comment">← Cross-cutting: logging, email, PDF, Excel</span>
+│   ├── Spartaxx.Workflow/             <span class="comment">← Automation workflows</span>
+│   ├── Spartaxx.Paperwise/            <span class="comment">← Paperwise DMS integration</span>
+│   ├── Spartaxx.Areas.Common/         <span class="comment">← Shared Hub Area (all Areas depend on this)</span>
+│   ├── Spartaxx.Areas.MainScreen/     <span class="comment">← Dashboard / landing page</span>
+│   ├── Spartaxx.Areas.Invoices/       <span class="comment">← Invoice management (17 controllers)</span>
+│   ├── Spartaxx.Areas.ClientSetup/    <span class="comment">← Client onboarding (21 controllers)</span>
+│   ├── Spartaxx.Areas.Collection/     <span class="comment">← Debt collection</span>
+│   ├── Spartaxx.Areas.Sales/          <span class="comment">← Sales pipeline</span>
+│   ├── Spartaxx.Areas.Arbitration/    <span class="comment">← Arbitration cases</span>
+│   ├── Spartaxx.Areas.Litigation/     <span class="comment">← Litigation management</span>
+│   ├── Spartaxx.Areas.DataEntry/      <span class="comment">← Document entry</span>
+│   ├── Spartaxx.Areas.Reports/        <span class="comment">← Reporting</span>
+│   ├── Spartaxx.Areas.WelcomeCall/    <span class="comment">← Outreach calls</span>
+│   ├── Spartaxx.Areas.Concierge/      <span class="comment">← Concierge services</span>
+│   └── ... (20+ Areas total)
+│
+├── <span class="folder">Spartaxx_WebAPI/</span>                   <span class="comment">← REST API (.NET 4.8, Dapper ORM)</span>
+│   ├── Spartaxx_WebAPI/               <span class="comment">← 23 Controllers</span>
+│   ├── Spartaxx.BusinessService/      <span class="comment">← 21 Service implementations</span>
+│   ├── Spartaxx.DataAccess/           <span class="comment">← 23 Repositories + UnitOfWork</span>
+│   └── Spartaxx.Common/              <span class="comment">← Enums, StoredProcNames, DTOs</span>
+│
+├── <span class="folder">Satellite APIs</span>
+│   ├── Spartaxx_AgentCommission_API/  <span class="comment">← .NET 7.0 microservice</span>
+│   ├── Spartaxx_Concierge_API/        <span class="comment">← .NET 6.0 microservice</span>
+│   ├── Spartaxx_Sales_API/            <span class="comment">← .NET 6.0 microservice</span>
+│   ├── Spartaxx_WelcomeCall_API/      <span class="comment">← .NET 6.0 microservice</span>
+│   ├── Spartaxx_Reports_API/          <span class="comment">← .NET 4.8 Reports API</span>
+│   └── Spartaxx_Calendar/             <span class="comment">← .NET 6.0 Calendar (MS Graph)</span>
+│
+├── <span class="folder">Integration APIs</span>
+│   ├── FileVineAPI/                   <span class="comment">← Filevine integration (.NET 4.8)</span>
+│   ├── FilevinePayments_API/          <span class="comment">← Filevine payments (.NET 4.7)</span>
+│   ├── LettersApi/                    <span class="comment">← Letter generation (.NET 4.6.1)</span>
+│   └── CADNavigator/                  <span class="comment">← CAD document navigation</span>
+│
+├── <span class="folder">Windows Services</span>
+│   ├── SpartaxxReportNServices/       <span class="comment">← 63 Quartz.NET-based services</span>
+│   ├── SpartaxxWCFServices/           <span class="comment">← WCF services (doc/media)</span>
+│   └── Services/                      <span class="comment">← 8 standalone services</span>
+│       ├── BirdEye, CAF, DunningLetterBlast, InactiveLuc
+│       ├── RnCode, SOS Automation, Spartaxx DNC, TalkDesk
+│       └── WaitingForRR
+│
+├── <span class="folder">SpartaxxSharedDLL/</span>                 <span class="comment">← 160+ compiled assemblies (deployment hub)</span>
+├── <span class="folder">Spartaxx_Ancillary/</span>                <span class="comment">← 30+ ancillary tools</span>
+└── <span class="folder">Spartaxx_DB/</span>                       <span class="comment">← Database scripts</span></div>
+    </div>
+
+    <div class="subsection">
+      <h3>1.2 Framework Versions in Use</h3>
+      <table>
+        <thead><tr><th>Project Group</th><th>Framework</th><th>ORM</th></tr></thead>
+        <tbody>
+          <tr><td>Spartaxx (Main Web)</td><td>.NET 4.8 / ASP.NET MVC 5</td><td>NHibernate 3.1 / FluentNHibernate</td></tr>
+          <tr><td>Spartaxx_WebAPI</td><td>.NET 4.8 / Web API 2</td><td>Dapper 2.0.30</td></tr>
+          <tr><td>Spartaxx_AgentCommission_API</td><td>.NET 7.0</td><td>SqlClient (raw)</td></tr>
+          <tr><td>Spartaxx_Concierge_API</td><td>.NET 6.0</td><td>EF Core 7.0.10</td></tr>
+          <tr><td>Spartaxx_Sales_API</td><td>.NET 6.0</td><td>EF Core 7.0.8</td></tr>
+          <tr><td>Spartaxx_WelcomeCall_API</td><td>.NET 6.0</td><td>EF Core 7.0.5</td></tr>
+          <tr><td>Spartaxx_Reports_API</td><td>.NET 4.8</td><td>Entity Framework 5.0</td></tr>
+          <tr><td>FileVineAPI</td><td>.NET 4.8</td><td>Dapper 2.0.30</td></tr>
+          <tr><td>LettersApi</td><td>.NET 4.6.1</td><td>ADO.NET + Crystal Reports</td></tr>
+          <tr><td>SpartaxxWCFServices</td><td>.NET 4.5.1</td><td>WCF</td></tr>
+          <tr><td>SpartaxxReportNServices</td><td>.NET 4.8</td><td>Various</td></tr>
+          <tr><td>Spartaxx_Calendar</td><td>.NET 6.0</td><td>None (REST only)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>1.3 Core Layer Architecture</h3>
+      <div class="diagram">┌─────────────────────────────────────────────────────────────┐
+│                    PRESENTATION LAYER                        │
+│  ┌──────────────┐ ┌───────────────┐ ┌────────────────────┐  │
+│  │ SPARTAXX     │ │ Spartaxx_     │ │ Satellite APIs     │  │
+│  │ (MVC 5)      │ │ WebAPI        │ │ (.NET 6/7)         │  │
+│  │ 20+ Areas    │ │ 23 Controllers│ │ 6 microservices    │  │
+│  └──────┬───────┘ └──────┬────────┘ └────────┬───────────┘  │
+├─────────┼────────────────┼────────────────────┼──────────────┤
+│         ▼ WORKFLOW / BUSINESS LOGIC LAYER     ▼              │
+│  ┌──────────────┐ ┌───────────────┐                          │
+│  │ PTXwf*       │ │ PTXbs*        │ ← Singleton Pattern     │
+│  │ Workflows    │ │ BusinessSvc   │                          │
+│  └──────┬───────┘ └──────┬────────┘                          │
+├─────────┼────────────────┼───────────────────────────────────┤
+│         ▼ DATA ACCESS LAYER                                  │
+│  ┌──────────────┐ ┌───────────────┐ ┌──────────────────┐    │
+│  │ PTXds*       │ │ UnitOfWork    │ │ NHibernate       │    │
+│  │ DataService  │ │ + Dapper      │ │ Session Mgmt     │    │
+│  └──────┬───────┘ └──────┬────────┘ └──────┬───────────┘    │
+├─────────┼────────────────┼──────────────────┼────────────────┤
+│         ▼ FOUNDATION LAYER                                   │
+│  ┌──────────────┐ ┌───────────────┐ ┌──────────────────┐    │
+│  │ BusinessObj  │ │ DataObjects   │ │ Utilities        │    │
+│  │ PTXbo*       │ │ PTXdo* + NH   │ │ Logging/Email/   │    │
+│  │              │ │ mappings      │ │ PDF/Excel        │    │
+│  └──────────────┘ └───────────────┘ └──────────────────┘    │
+├──────────────────────────────────────────────────────────────┤
+│ EXTERNAL: SQL Server │ Paperwise DMS │ SendGrid │ Twilio     │
+│           Crystal Reports │ Elasticsearch │ Redis            │
+└──────────────────────────────────────────────────────────────┘</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 2: FILE-LEVEL DEPENDENCY MAP ===================== -->
+<div class="section" id="sec2">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">2</span>
+    <h2>File-Level Dependency Map</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>2.1 Spartaxx_WebAPI — Controller Layer</h3>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / Controllers / InvoiceController.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target File</th></tr></thead>
+          <tbody>
+            <tr><td>Spartaxx.BusinessService.IInvoiceService</td><td>Interface (DI)</td><td>Spartaxx_WebAPI/Spartaxx.BusinessService/Interface/IInvoiceService.cs</td></tr>
+            <tr><td>Spartaxx.BusinessObjects.Invoice.*</td><td>Model types</td><td>Spartaxx/Spartaxx.BusinessObjects/Invoice/*.cs</td></tr>
+            <tr><td>Spartaxx.DataObjects.*</td><td>DTO types</td><td>Spartaxx/Spartaxx.DataObjects/*.cs</td></tr>
+            <tr><td>Newtonsoft.Json</td><td>Serialization</td><td>NuGet: Newtonsoft.Json 13.0.1</td></tr>
+            <tr><td>System.Web.Http.ApiController</td><td>Base class</td><td>Framework</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / Controllers / AccountController.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target File</th></tr></thead>
+          <tbody>
+            <tr><td>IAccountService</td><td>Interface (DI)</td><td>Spartaxx_WebAPI/Spartaxx.BusinessService/Interface/IAccountService.cs</td></tr>
+            <tr><td>Spartaxx.BusinessObjects.*</td><td>Model types</td><td>Spartaxx/Spartaxx.BusinessObjects/*.cs</td></tr>
+            <tr><td>Spartaxx.Common.BusinessObjects.*</td><td>DTOs</td><td>Spartaxx_WebAPI/Spartaxx.Common/BusinessObjects/*.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / App_Start / UnityConfig.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target File</th></tr></thead>
+          <tbody>
+            <tr><td>All IService interfaces (21)</td><td>DI Registration</td><td>Spartaxx_WebAPI/Spartaxx.BusinessService/Interface/*.cs</td></tr>
+            <tr><td>All Service implementations (21)</td><td>DI Registration</td><td>Spartaxx_WebAPI/Spartaxx.BusinessService/Implementation/*.cs</td></tr>
+            <tr><td>Unity 5.11.1</td><td>DI Container</td><td>NuGet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p style="color:var(--muted); font-size:0.82rem; margin-top:8px;">Pattern repeats for all 23 controllers: HearingResult, Affidavit, ClientIndex, ExistingClient, Common, EditInvoice, MainScreenInvoice, InvoiceAdjustmentAudit, InvoicePastdueConfiguration, InvoicePending, InvoiceSpecialTerms, InvoiceFlatFeePre, InvoiceDefects, ClientReferralCampaign, DeferredMaintenance, TaskAllocation, HearingNotice, ClientSearch.</p>
+    </div>
+
+    <div class="subsection">
+      <h3>2.2 Spartaxx_WebAPI — Service & Data Access Layers</h3>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / BusinessService / InvoiceService.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>IInvoiceService</td><td>Implements</td><td>Spartaxx_WebAPI/Spartaxx.BusinessService/Interface/IInvoiceService.cs</td></tr>
+            <tr><td>new UnitOfWork()</td><td>Instantiation</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/UnitOfWork.cs</td></tr>
+            <tr><td>UnitOfWork.InvoiceRepository</td><td>Method calls</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/Implementation/InvoiceRepository.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / DataAccess / UnitOfWork.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>new DapperConnection()</td><td>Instantiation</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/DapperConnection.cs</td></tr>
+            <tr><td>21 Repository constructors</td><td>Instantiation</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/Implementation/*.cs</td></tr>
+            <tr><td>21 IRepository interfaces</td><td>Interface refs</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/Interface/*.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_WebAPI / DataAccess / InvoiceRepository.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>IInvoiceRepository</td><td>Implements</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/Interface/IInvoiceRepository.cs</td></tr>
+            <tr><td>DapperConnection</td><td>Method calls</td><td>Spartaxx_WebAPI/Spartaxx.DataAccess/DapperConnection.cs</td></tr>
+            <tr><td>StoredProcedureNames.*</td><td>Constants</td><td>Spartaxx_WebAPI/Spartaxx.Common/StoredProcedureNames.cs</td></tr>
+            <tr><td>Logger</td><td>Logging</td><td>Spartaxx/Spartaxx.Utilities/Logging/Logger.cs</td></tr>
+            <tr><td>Newtonsoft.Json</td><td>Serialization</td><td>NuGet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <h3>2.3 Spartaxx Core — Business / Data / DAO Layers</h3>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx / BusinessService / PTXbsCommon.cs &nbsp;<span class="badge badge-critical">God Class</span></div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>SingletonBase&lt;PTXbsCommon&gt;</td><td>Inherits</td><td>Spartaxx/Spartaxx.BusinessService/SingletonBase/SingletonBase.cs</td></tr>
+            <tr><td>PTXdsCommon.CurrentInstance</td><td>Singleton call</td><td>Spartaxx/Spartaxx.DataService/Implementation/PTXdsCommon.cs</td></tr>
+            <tr><td>Spartaxx.BusinessObjects.*</td><td>Models</td><td>Spartaxx/Spartaxx.BusinessObjects/*.cs</td></tr>
+            <tr><td>Spartaxx.DataObjects.*</td><td>DTOs</td><td>Spartaxx/Spartaxx.DataObjects/*.cs</td></tr>
+            <tr><td>Logger</td><td>Logging</td><td>Spartaxx/Spartaxx.Utilities/Logging/Logger.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx / DataService / PTXdsCommon.cs &nbsp;<span class="badge badge-critical">God Class</span>&nbsp;<span class="badge badge-critical">Circular</span></div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>PTXdsBase&lt;PTXdsCommon&gt;</td><td>Inherits</td><td>Spartaxx/Spartaxx.Data.Common/DAO/PTXdsBase.cs</td></tr>
+            <tr><td>IDBManager.ExecuteDataSet()</td><td>DB operations</td><td>Spartaxx/Spartaxx.Data.Common/DAO/IDBManager.cs</td></tr>
+            <tr><td><strong>Spartaxx.BusinessService.PTXbs*</strong></td><td><strong>Layer violation!</strong></td><td>Spartaxx/Spartaxx.BusinessService/Implementation/PTXbs*.cs</td></tr>
+            <tr><td>Spartaxx.Paperwise.*</td><td>DMS</td><td>Spartaxx/Spartaxx.Paperwise/*.cs</td></tr>
+            <tr><td>Spartaxx.Common.Reports.*</td><td>Reports</td><td>SpartaxxReportNServices/Spartaxx.Common.Reports/*.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx / Data.Common / DAO / PTXdsBase.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>new DBManager()</td><td>Instantiation</td><td>Spartaxx/Spartaxx.Data.Common/DAO/DBManager.cs</td></tr>
+            <tr><td>IDBManager</td><td>Interface</td><td>Spartaxx/Spartaxx.Data.Common/DAO/IDBManager.cs</td></tr>
+            <tr><td>ConfigurationManager</td><td>Config</td><td>Web.config / App.config</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <h3>2.4 Areas — Key Controllers</h3>
+
+      <div class="dep-card">
+        <div class="file-name">Areas.Common / WorkFlow / PTXwfCommon.cs &nbsp;<span class="badge badge-high">Hub Singleton</span></div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>SingletonBase&lt;PTXwfCommon&gt;</td><td>Inherits</td><td>Spartaxx/Spartaxx.BusinessService/SingletonBase/SingletonBase.cs</td></tr>
+            <tr><td>PTXbsCommon.CurrentInstance</td><td>Singleton calls</td><td>Spartaxx/Spartaxx.BusinessService/Implementation/PTXbsCommon.cs</td></tr>
+            <tr><td>Spartaxx.Paperwise.*</td><td>DMS</td><td>Spartaxx/Spartaxx.Paperwise/*.cs</td></tr>
+            <tr><td>Spartaxx.Data.Common.*</td><td>Repository base</td><td>Spartaxx/Spartaxx.Data.Common/*.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Areas.MainScreen / Controllers / MainScreenController.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>PTXwfMainScreen.CurrentInstance</td><td>Workflow singleton</td><td>Spartaxx/Spartaxx.Areas.MainScreen/WorkFlow/PTXwfMainScreen.cs</td></tr>
+            <tr><td>Spartaxx.Areas.ClientSetup.WorkFlow.*</td><td>Cross-Area call</td><td>Spartaxx/Spartaxx.Areas.ClientSetup/WorkFlow/*.cs</td></tr>
+            <tr><td>Spartaxx.Areas.Common.WorkFlow.PTXwfCommon</td><td>Cross-Area call</td><td>Spartaxx/Spartaxx.Areas.Common/WorkFlow/PTXwfCommon.cs</td></tr>
+            <tr><td>Telerik.Web.Mvc</td><td>UI controls</td><td>NuGet/DLL</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Areas.Concierge / Controllers / ConciergeDashboardController.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>PTXwfConcierge.CurrentInstance</td><td>Workflow</td><td>Spartaxx/Spartaxx.Areas.Concierge/Workflow/PTXwfConcierge.cs</td></tr>
+            <tr><td>Spartaxx.Areas.Common.WorkFlow.*</td><td>Cross-Area</td><td>Spartaxx/Spartaxx.Areas.Common/WorkFlow/*.cs</td></tr>
+            <tr><td>Spartaxx.Areas.ClientSetup.*</td><td>Cross-Area</td><td>Spartaxx/Spartaxx.Areas.ClientSetup/*.cs</td></tr>
+            <tr><td>Spartaxx.Areas.MainScreen.*</td><td>Cross-Area</td><td>Spartaxx/Spartaxx.Areas.MainScreen/*.cs</td></tr>
+            <tr><td>Spartaxx.Areas.DeferredMaintenance.*</td><td>Cross-Area</td><td>Spartaxx/Spartaxx.Areas.DeferredMaintenance/*.cs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <h3>2.5 Satellite APIs & Windows Services</h3>
+
+      <div class="dep-card">
+        <div class="file-name">Spartaxx_Concierge_API / Controllers / ConciergeController.cs &nbsp;<span class="badge badge-medium">.NET 6</span></div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>IConciergeRepository</td><td>Interface (DI)</td><td>Spartaxx_Concierge_API/Repository/Interface/IConciergeRepository.cs</td></tr>
+            <tr><td>Spartaxx.BusinessObjects.Concierge.*</td><td>Shared models</td><td>via SpartaxxSharedDLL/Spartaxx.BusinessObjects.dll</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="dep-card">
+        <div class="file-name">Services / DunningLetterBlast / DunningLetterServiceBL.cs</div>
+        <table>
+          <thead><tr><th>Depends On</th><th>Type</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Spartaxx.BusinessObjects.*</td><td>Models</td><td>SpartaxxSharedDLL/Spartaxx.BusinessObjects.dll</td></tr>
+            <tr><td>Spartaxx.DataObjects.*</td><td>DTOs</td><td>SpartaxxSharedDLL/Spartaxx.DataObjects.dll</td></tr>
+            <tr><td>SendGrid APIs</td><td>Email</td><td>NuGet</td></tr>
+            <tr><td>Twilio</td><td>SMS</td><td>Config-based</td></tr>
+            <tr><td>log4net</td><td>Logging</td><td>NuGet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 3: CROSS-LAYER DEPENDENCIES ===================== -->
+<div class="section" id="sec3">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">3</span>
+    <h2>Cross-Layer Dependencies</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>3.1 WebAPI Flow</h3>
+      <div class="diagram">InvoiceController.cs ──[DI]──▶ IInvoiceService
+                                    │
+                        InvoiceService.cs
+                              │
+                     ──[new]──▶ UnitOfWork.cs
+                                    │
+                     ──[new]──▶ DapperConnection.cs ──▶ Web.config (conn strings)
+                              │              │
+                  ──[new]──▶ InvoiceRepository.cs
+                              │         │           │
+                    StoredProcedureNames   Logger    Enumerator
+                              │
+                      SQL Server (SPARTAXX_DEV)</div>
+    </div>
+
+    <div class="subsection">
+      <h3>3.2 Main Web App Singleton Chain</h3>
+      <div class="diagram">Controller ──▶ PTXwf* (Workflow Singleton)
+                    │
+                    ▼
+              PTXbs* (Business Service Singleton)
+                    │
+                    ▼
+              PTXds* (Data Service Singleton)
+                    │
+                    ▼
+              PTXdsBase ──▶ DBManager ──▶ SqlConnection ──▶ SQL Server</div>
+    </div>
+
+    <div class="subsection">
+      <h3>3.3 Cross-Area Dependencies</h3>
+      <div class="diagram">                    ┌────────────────┐
+                    │  Areas.Common  │  ◀── EVERY AREA DEPENDS ON THIS
+                    └───────┬────────┘
+                            │
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+┌───────▼────────┐  ┌──────▼───────┐  ┌────────▼──────┐
+│  MainScreen    │  │ ClientSetup  │  │ TaskAllocation│
+│ (Dashboard Hub)│  │ (Client Hub) │  │ (Queue Hub)   │
+└──┬──┬──┬───────┘  └──┬──┬───────┘  └───┬───────────┘
+   │  │  │              │  │              │
+   │  │  └──▶ Invoices  │  │              │
+   │  └─────▶ DataAnalyst│  │              │
+   │                     │  │              │
+   │   ┌─────────────────┘  │              │
+   ▼   ▼                    ▼              ▼
+Concierge (4 Areas)    DataEntry       WelcomeCall
+
+Arbitration ──▶ CS    │   Litigation ──▶ CS
+Collection  ──▶ Reports   Sales ──▶ ClientSetup</div>
+    </div>
+
+    <div class="subsection">
+      <h3>3.4 SharedDLL as Cross-Project Bridge</h3>
+      <div class="diagram">Spartaxx Core Projects (build output)
+        │
+        ▼
+┌──────────────────────────┐
+│   SpartaxxSharedDLL/     │  160+ assemblies
+│   ┌────────────────────┐ │
+│   │  Spartaxx.*.dll    │ │  All core + Third-party
+│   └────────────────────┘ │
+└──────┬───────────────────┘
+       │
+       ├──▶ Spartaxx_WebAPI         ├──▶ FileVineAPI
+       ├──▶ Spartaxx_Concierge_API  ├──▶ LettersApi
+       ├──▶ Spartaxx_Sales_API      ├──▶ SpartaxxReportNServices
+       ├──▶ Spartaxx_WelcomeCall_API├──▶ SpartaxxWCFServices
+       └──▶ Services/* (8 services) └──▶ Spartaxx_Ancillary/*</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 4: CIRCULAR DEPENDENCIES ===================== -->
+<div class="section" id="sec4">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">4</span>
+    <h2>Circular Dependencies</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="alert alert-critical">
+      <strong>2 circular dependencies detected</strong> — these block independent testing and deployment.
+    </div>
+
+    <div class="subsection">
+      <h3>4.1 Project-Level Scan Results</h3>
+      <table>
+        <thead><tr><th>Project A</th><th>Project B</th><th>Circular?</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>Spartaxx.BusinessService</td><td>Spartaxx.DataService</td><td><span class="badge badge-critical">YES</span></td><td>PTXdsCommon.cs → <code>using Spartaxx.BusinessService</code></td></tr>
+          <tr><td>Spartaxx.Areas.MainScreen</td><td>Spartaxx.Areas.Invoices</td><td><span class="badge badge-critical">YES</span></td><td>Bidirectional .csproj references</td></tr>
+          <tr><td colspan="2">All other projects</td><td><span class="badge badge-medium">NO</span></td><td>Clean one-way dependency chain</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>4.2 DataService ↔ BusinessService</h3>
+      <div class="diagram">PTXdsCommon.cs (DataService layer)
+    using Spartaxx.BusinessService;    ← Data layer depends UP on Business layer
+
+PTXbsCommon.cs (BusinessService layer)
+    using Spartaxx.DataService;        ← Business layer depends DOWN on Data layer
+    new PTXdsCommon()                  ← Direct instantiation</div>
+      <div class="alert alert-warning"><strong>Impact:</strong> Layer violation — the Data layer should NEVER depend on the Business layer. Independent testing/deployment is impossible.</div>
+    </div>
+
+    <div class="subsection">
+      <h3>4.3 MainScreen ↔ Invoices</h3>
+      <div class="diagram">Spartaxx.Areas.MainScreen.csproj
+    &lt;Reference Include="Spartaxx.Areas.Invoices" /&gt;
+
+Spartaxx.Areas.Invoices.csproj
+    &lt;Reference Include="Spartaxx.Areas.MainScreen" /&gt;</div>
+      <div class="alert alert-warning"><strong>Impact:</strong> These two Areas cannot be deployed or tested independently.</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 5: HIGH RISK FILES ===================== -->
+<div class="section" id="sec5">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">5</span>
+    <h2>High Risk Files (Most Referenced)</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>5.1 Top Referenced Files / Assemblies</h3>
+      <table>
+        <thead><tr><th>Rank</th><th>File / Assembly</th><th>Referenced By</th><th>Risk</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Spartaxx.BusinessObjects/*.cs</td><td>ALL 192 projects</td><td><span class="badge badge-critical">Critical</span></td></tr>
+          <tr><td>2</td><td>Spartaxx.DataObjects/*.cs</td><td>~180 projects</td><td><span class="badge badge-critical">Critical</span></td></tr>
+          <tr><td>3</td><td>Spartaxx.Utilities/*.cs</td><td>~170 projects</td><td><span class="badge badge-critical">Critical</span></td></tr>
+          <tr><td>4</td><td>Logger.cs</td><td>~100+ files directly</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>5</td><td>PTXwfCommon.cs</td><td>All 20 Areas</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>6</td><td>PTXbsCommon.cs</td><td>All Areas + Services</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>7</td><td>PTXdsCommon.cs</td><td>PTXbsCommon + Areas</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>8</td><td>PTXdsBase.cs</td><td>All PTXds* classes (~94)</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>9</td><td>DBManager.cs</td><td>All PTXds* via PTXdsBase</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>10</td><td>SingletonBase.cs</td><td>All PTXbs*, PTXwf*, PTXds*</td><td><span class="badge badge-high">High</span></td></tr>
+          <tr><td>11</td><td>UnitOfWork.cs</td><td>21 service classes</td><td><span class="badge badge-medium">Medium</span></td></tr>
+          <tr><td>12</td><td>DapperConnection.cs</td><td>UnitOfWork + all repos</td><td><span class="badge badge-medium">Medium</span></td></tr>
+          <tr><td>13</td><td>StoredProcedureNames.cs</td><td>23 repository files</td><td><span class="badge badge-medium">Medium</span></td></tr>
+          <tr><td>14</td><td>Enumerator.cs</td><td>Multiple layers</td><td><span class="badge badge-medium">Medium</span></td></tr>
+          <tr><td>15</td><td>SpartaxxSharedDLL/ (folder)</td><td>12+ satellite projects</td><td><span class="badge badge-critical">Critical</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>5.2 God Classes (Single Responsibility Violations)</h3>
+      <table>
+        <thead><tr><th>File</th><th>Problem</th><th>Scale</th></tr></thead>
+        <tbody>
+          <tr><td>PTXbsCommon.cs</td><td>Catch-all business service — menus, users, dropdowns, emails</td><td>100+ methods</td></tr>
+          <tr><td>PTXdsCommon.cs</td><td>Catch-all data service — all "common" queries</td><td>100+ methods</td></tr>
+          <tr><td>PTXwfCommon.cs</td><td>Catch-all workflow — UI/session logic orchestrator</td><td>80+ methods</td></tr>
+          <tr><td>UnitOfWork.cs</td><td>Instantiates ALL 21 repositories — knows every data concern</td><td>21 properties</td></tr>
+          <tr><td>StoredProcedureNames.cs</td><td>Single file with all SP name constants</td><td>80+ constants</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 6: HARDCODED DEPENDENCIES ===================== -->
+<div class="section" id="sec6">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">6</span>
+    <h2>Hardcoded Dependencies</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="alert alert-critical"><strong>SECURITY:</strong> Plain-text credentials in 28+ config files. API keys committed to source control.</div>
+
+    <div class="subsection">
+      <h3>6.1 Database Connections (Plain Text)</h3>
+      <table>
+        <thead><tr><th>Connection</th><th>Server</th><th>Database</th><th>Used In</th></tr></thead>
+        <tbody>
+          <tr><td>Spartaxx</td><td>pfbadbuat</td><td>SPARTAXX_DEV</td><td>WebAPI, AgentCommission, Concierge</td></tr>
+          <tr><td>Spartaxx</td><td>IDCDBUAT</td><td>Spartaxx</td><td>WelcomeCall, BlastCode AofA</td></tr>
+          <tr><td>Spartaxx</td><td>SPXDB</td><td>Spartaxx</td><td>Sales API, WaitingForRR, BlastCode</td></tr>
+          <tr><td>CSDBTaxRoll</td><td>pfbadbuat</td><td>CSDBTaxRoll</td><td>Spartaxx_WebAPI</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>6.2 Hardcoded Service URLs</h3>
+      <table>
+        <thead><tr><th>URL</th><th>Service</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>http://SPXFPAPPS:91/DunningLetterAPI/</td><td>DunningLetter API</td><td>DunningLetterBlast</td></tr>
+          <tr><td>http://SPXFPAPPS:83/</td><td>Main WebAPI</td><td>DunningLetterBlast</td></tr>
+          <tr><td>http://pfbaappuat:9013/</td><td>Paperwise API</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>http://spartaxxappuat:94/</td><td>PAX WEB (Legacy)</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>https://test.authorize.net/gateway/transact.dll</td><td>Payment Gateway</td><td>Spartaxx_WebAPI</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>6.3 Hardcoded File System Paths</h3>
+      <table>
+        <thead><tr><th>Path</th><th>Purpose</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>\\pfbaappuat\PFBAappUAT\PFBA2\DeferredMaintenance\</td><td>DM images</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>\\pfbaappuat\PFBAappUAT\SpxPerfUatApp\ReportGenExportPath\</td><td>Reports</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>\\spxfpapps\SpartaxxEmail\...</td><td>Email exports</td><td>DunningLetterBlast</td></tr>
+          <tr><td>E:\Applications\DunningLetterWindowsServices\</td><td>Service base</td><td>DunningLetterBlast</td></tr>
+          <tr><td>C:\Logs\RestApiLog.log</td><td>Serilog log</td><td>AgentCommission API</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>6.4 Exposed API Keys &amp; Credentials</h3>
+      <table>
+        <thead><tr><th>Service</th><th>Credential Type</th><th>Location</th></tr></thead>
+        <tbody>
+          <tr><td>SendGrid</td><td>API Key (SG.YPpEw2XrSN...)</td><td>BlastCode/AofABlast/App.config, DunningLetterBlast/App.config</td></tr>
+          <tr><td>Twilio</td><td>Account SID + Auth Token</td><td>DunningLetterBlast/App.config</td></tr>
+          <tr><td>Bitly</td><td>Access Token</td><td>DunningLetterBlast/App.config</td></tr>
+          <tr><td>SMTP</td><td>SendGrid credentials</td><td>Multiple Web.config files</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 7: EXTERNAL LIBRARY DEPENDENCIES ===================== -->
+<div class="section" id="sec7">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">7</span>
+    <h2>External Library Dependencies</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>7.1 Data Access / ORM</h3>
+      <table>
+        <thead><tr><th>Package</th><th>Version</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>NHibernate</td><td>3.1.0.4000</td><td>Spartaxx Core (DataObjects, Data.Common)</td></tr>
+          <tr><td>FluentNHibernate</td><td>1.2.0.712</td><td>Spartaxx Core (DataObjects)</td></tr>
+          <tr><td>Dapper</td><td>2.0.30</td><td>Spartaxx_WebAPI, FileVineAPI</td></tr>
+          <tr><td>EntityFramework</td><td>5.0.0 – 6.0.0</td><td>Reports API, some services</td></tr>
+          <tr><td>Microsoft.EntityFrameworkCore.SqlServer</td><td>7.0.5 – 7.0.10</td><td>.NET 6/7 satellite APIs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>7.2 Web Frameworks</h3>
+      <table>
+        <thead><tr><th>Package</th><th>Version</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>Microsoft.AspNet.Mvc</td><td>5.2.3</td><td>Spartaxx Main Web</td></tr>
+          <tr><td>Microsoft.AspNet.WebApi.Core</td><td>5.2.7</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>Telerik.Web.Mvc</td><td>(vendor DLL)</td><td>Spartaxx Main Web (all Areas)</td></tr>
+          <tr><td>Swashbuckle.AspNetCore</td><td>6.2.3 – 6.4.0</td><td>.NET 6/7 APIs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>7.3 Reporting &amp; Documents</h3>
+      <table>
+        <thead><tr><th>Package</th><th>Version</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>CrystalDecisions.* (13 DLLs)</td><td>13.0.2000.0</td><td>Reports, LettersApi, CAF, services</td></tr>
+          <tr><td>itextsharp</td><td>5.0.5.0</td><td>PDF generation across projects</td></tr>
+          <tr><td>Select.HtmlToPdf</td><td>18.4.0.0</td><td>BusinessService</td></tr>
+          <tr><td>EPPlus</td><td>(bundled)</td><td>Reports, Collection</td></tr>
+          <tr><td>NPOI</td><td>0.95.3 – 2.1.3.1</td><td>Excel processing</td></tr>
+          <tr><td>ClosedXML</td><td>0.95.4 – 0.102.0</td><td>Reports API</td></tr>
+          <tr><td>Aspose.PDF</td><td>21.3.0</td><td>Reports API</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>7.4 Logging / DI / Communication</h3>
+      <table>
+        <thead><tr><th>Package</th><th>Version</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>log4net</td><td>1.2.10 – 2.0.8</td><td>ALL projects (universal)</td></tr>
+          <tr><td>Serilog.AspNetCore.Plus</td><td>7.0.0</td><td>AgentCommission API</td></tr>
+          <tr><td>Microsoft.Practices.Unity</td><td>2.0.414.0</td><td>Spartaxx Core</td></tr>
+          <tr><td>Unity</td><td>5.11.1</td><td>Spartaxx_WebAPI</td></tr>
+          <tr><td>Newtonsoft.Json</td><td>6.0.0 – 13.0.3 (mixed!)</td><td>ALL projects</td></tr>
+          <tr><td>SendGridEventsAPI.SDK</td><td>1.0.0.0</td><td>DunningLetterBlast, DataService</td></tr>
+          <tr><td>RestSharp</td><td>106.6.10 – 110.2.0</td><td>FileVineAPI, Calendar</td></tr>
+          <tr><td>StackExchange.Redis</td><td>(bundled)</td><td>Spartaxx Core (caching)</td></tr>
+          <tr><td>Elasticsearch.Net / NEST</td><td>6.0.0</td><td>DataService (search)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>7.5 COM Interop Dependencies</h3>
+      <table>
+        <thead><tr><th>COM Library</th><th>Purpose</th><th>Used By</th></tr></thead>
+        <tbody>
+          <tr><td>Interop.PwObjectModel</td><td>Paperwise DMS</td><td>DataService, LettersApi, CAF, WCF</td></tr>
+          <tr><td>Interop.RFCOMAPILib</td><td>Fax/Communications</td><td>Utilities</td></tr>
+          <tr><td>Microsoft.Office.Interop.Excel</td><td>Excel Automation</td><td>BusinessService, Utilities</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 8: ARCHITECTURE ISSUES ===================== -->
+<div class="section" id="sec8">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">8</span>
+    <h2>Architecture Issues Identified (23 Total)</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>8.1 Critical Issues</h3>
+      <table>
+        <thead><tr><th>#</th><th>Issue</th><th>Impact</th><th>Affected</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Plain-text credentials in 28+ config files</td><td>Security breach risk</td><td>All Web.config / App.config</td></tr>
+          <tr><td>2</td><td>API keys committed to source (SendGrid, Twilio, Bitly)</td><td>Credential exposure</td><td>BlastCode, DunningLetterBlast</td></tr>
+          <tr><td>3</td><td>Circular dependency: DataService ↔ BusinessService</td><td>Cannot test independently</td><td>PTXdsCommon.cs, PTXbsCommon.cs</td></tr>
+          <tr><td>4</td><td>Circular dependency: MainScreen ↔ Invoices</td><td>Deployment coupling</td><td>MainScreen.csproj, Invoices.csproj</td></tr>
+          <tr><td>5</td><td>Mixed .NET framework versions (.NET 4.5 → 7.0)</td><td>Incompatible runtimes</td><td>Entire codebase</td></tr>
+          <tr><td>6</td><td>Newtonsoft.Json version conflicts (6.0 to 13.0.3)</td><td>Binding failures</td><td>Multiple projects</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>8.2 High Issues</h3>
+      <table>
+        <thead><tr><th>#</th><th>Issue</th><th>Impact</th><th>Affected</th></tr></thead>
+        <tbody>
+          <tr><td>7</td><td>God classes (PTXbsCommon, PTXdsCommon, PTXwfCommon)</td><td>Unmaintainable, untestable</td><td>Core layers</td></tr>
+          <tr><td>8</td><td>Singleton pattern everywhere</td><td>Hidden deps, testing barriers</td><td>All PTXbs*, PTXds*, PTXwf*</td></tr>
+          <tr><td>9</td><td>DLL-based coupling via SharedDLL</td><td>Version sync required</td><td>12+ satellite projects</td></tr>
+          <tr><td>10</td><td>Hardcoded server hostnames</td><td>Cannot switch environments</td><td>28+ config files</td></tr>
+          <tr><td>11</td><td>Hardcoded file paths (UNC, E:\ drive)</td><td>Server-specific deployment</td><td>DunningLetterBlast, WebAPI</td></tr>
+          <tr><td>12</td><td>Multiple ORM technologies (4 different)</td><td>Inconsistent patterns</td><td>Core=NH, WebAPI=Dapper, Satellite=EFC</td></tr>
+          <tr><td>13</td><td>Crystal Reports dependency (13 DLLs)</td><td>Vendor lock-in</td><td>Reports, LettersApi, CAF, WCF</td></tr>
+          <tr><td>14</td><td>COM Interop (Paperwise)</td><td>Server registry dependency</td><td>DataService, LettersApi, WCF</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>8.3 Medium Issues</h3>
+      <table>
+        <thead><tr><th>#</th><th>Issue</th><th>Impact</th><th>Affected</th></tr></thead>
+        <tbody>
+          <tr><td>15</td><td>Concierge depends on 4 other Areas</td><td>Feature coupling</td><td>Concierge Area</td></tr>
+          <tr><td>16</td><td>Repos doing email/PDF (SoC violation)</td><td>Data layer has presentation logic</td><td>InvoiceRepo, DeferredMaintenanceRepo</td></tr>
+          <tr><td>17</td><td>UnitOfWork knows all 21 repositories</td><td>Monolithic UoW</td><td>UnitOfWork.cs</td></tr>
+          <tr><td>18</td><td>StoredProcedureNames — single 80+ constant file</td><td>Change ripple</td><td>StoredProcedureNames.cs</td></tr>
+          <tr><td>19</td><td>Inconsistent logging (log4net vs Serilog vs EventLog)</td><td>Fragmented observability</td><td>Multiple projects</td></tr>
+          <tr><td>20</td><td>Inconsistent DI (Unity 2.x vs 5.x vs built-in)</td><td>Incompatible patterns</td><td>Multiple projects</td></tr>
+          <tr><td>21</td><td>Two SharedDLL folders</td><td>Version confusion</td><td>SpartaxxSharedDLL/, Spartaxx/SharedDLL/</td></tr>
+          <tr><td>22</td><td>Duplicate project structures</td><td>Code duplication</td><td>FileVineAPI + FilevinePayments_API</td></tr>
+          <tr><td>23</td><td>Spelling inconsistencies in class names</td><td>Navigation confusion</td><td>Repocitory, DeferedMaintenance, etc.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SECTION 9: RECOMMENDATIONS ===================== -->
+<div class="section" id="sec9">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">9</span>
+    <h2>Recommendations to Decouple the System</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>9.1 Immediate Actions — Security (Do First)</h3>
+      <div class="alert alert-critical">
+        <ol style="margin:0; padding-left:18px;">
+          <li>Rotate all exposed credentials (SendGrid, Twilio, Bitly, DB passwords)</li>
+          <li>Move secrets to secure storage (Azure Key Vault / environment variables)</li>
+          <li>Remove plain-text passwords from all config files in source control</li>
+          <li>Add config files with secrets to .gitignore or use config transforms</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <h3>9.2 Break Circular Dependencies</h3>
+      <table>
+        <thead><tr><th>Circular</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>DataService ↔ BusinessService</td><td>Extract shared types into a <code>Spartaxx.Contracts</code> project. DataService depends only downward.</td></tr>
+          <tr><td>MainScreen ↔ Invoices</td><td>Create <code>Spartaxx.Areas.Shared.Models</code> for types shared between Areas.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>9.3 Decompose God Classes</h3>
+      <table>
+        <thead><tr><th>Current</th><th>Proposed Split</th></tr></thead>
+        <tbody>
+          <tr><td>PTXbsCommon.cs</td><td>PTXbsMenu, PTXbsUser, PTXbsDropdown, PTXbsNotification</td></tr>
+          <tr><td>PTXdsCommon.cs</td><td>PTXdsMenu, PTXdsUser, PTXdsDropdown, PTXdsNotification</td></tr>
+          <tr><td>PTXwfCommon.cs</td><td>Session manager, Menu provider, Navigation helper</td></tr>
+          <tr><td>UnitOfWork.cs</td><td>InvoiceUnitOfWork, ClientUnitOfWork, HearingUnitOfWork</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>9.4 Standardize Technology Stack</h3>
+      <table>
+        <thead><tr><th>Current</th><th>Recommended</th></tr></thead>
+        <tbody>
+          <tr><td>4 ORM technologies</td><td>Standardize on Dapper (simple) or EF Core (complex)</td></tr>
+          <tr><td>3 logging frameworks</td><td>Standardize on Serilog</td></tr>
+          <tr><td>3 DI containers</td><td>Use built-in .NET DI for new; Unity for legacy</td></tr>
+          <tr><td>4+ PDF libraries</td><td>Consolidate to 1 (QuestPDF or iTextSharp)</td></tr>
+          <tr><td>Mixed .NET versions</td><td>Target .NET 8 LTS for new development</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>9.5 – 9.8 Infrastructure &amp; Long-Term</h3>
+      <table>
+        <thead><tr><th>Category</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Binary Coupling</td><td>Convert SpartaxxSharedDLL to a private NuGet feed with versioned packages</td></tr>
+          <tr><td>Environment Config</td><td>Per-environment configuration (appsettings.*.json) + service discovery</td></tr>
+          <tr><td>Singleton Pattern</td><td>Replace SingletonBase + CurrentInstance with proper DI registration</td></tr>
+          <tr><td>Modernization Phase 1</td><td>Security fixes + eliminate circular dependencies</td></tr>
+          <tr><td>Modernization Phase 2</td><td>Standardize logging, DI, and config management</td></tr>
+          <tr><td>Modernization Phase 3</td><td>Convert SharedDLL to NuGet feeds</td></tr>
+          <tr><td>Modernization Phase 4</td><td>Migrate .NET 4.x projects to .NET 8 incrementally</td></tr>
+          <tr><td>Modernization Phase 5</td><td>Decompose monolith Areas into independent microservices</td></tr>
+          <tr><td>Modernization Phase 6</td><td>Replace Crystal Reports + COM interop with modern alternatives</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== APPENDIX ===================== -->
+<div class="section" id="appendix">
+  <div class="section-header" onclick="toggleSection(this)">
+    <span class="num">A</span>
+    <h2>Appendix — Project Reference Matrix &amp; Config Locations</h2>
+    <span class="toggle">&#9660;</span>
+  </div>
+  <div class="section-body">
+
+    <div class="subsection">
+      <h3>A.1 Complete Project Reference Matrix</h3>
+      <table>
+        <thead><tr><th style="width:30%">Project</th><th>References (depends on)</th></tr></thead>
+        <tbody>
+          <tr><td>SPARTAXX (Web Host)</td><td>All Area DLLs (20+), BusinessObjects, DataObjects, Utilities, BusinessService, DataService, Data.Common, Workflow, Paperwise, CommonInterface</td></tr>
+          <tr><td>Spartaxx.BusinessObjects</td><td>DataObjects, Utilities</td></tr>
+          <tr><td>Spartaxx.DataObjects</td><td>Utilities, NHibernate, FluentNHibernate</td></tr>
+          <tr><td>Spartaxx.Data.Common</td><td>DataObjects, Utilities, NHibernate, Castle.Core, Unity</td></tr>
+          <tr><td>Spartaxx.DataService</td><td>BusinessObjects, DataObjects, Data.Common, Utilities, <strong>BusinessService (circular!)</strong>, Paperwise, Common.Reports, Elasticsearch, Crystal Reports</td></tr>
+          <tr><td>Spartaxx.BusinessService</td><td>BusinessObjects, DataObjects, DataService, Data.Common, Utilities, NPOI, Crystal Reports, Areas.Common, Areas.MainScreen</td></tr>
+          <tr><td>Spartaxx.Workflow</td><td>BusinessService (+ transitive chain)</td></tr>
+          <tr><td>Spartaxx.Paperwise</td><td>CommonInterface, BusinessObjects, Data.Common, DataObjects, Utilities, PwObjectModel</td></tr>
+          <tr><td>Spartaxx.Utilities</td><td>(Foundation — no internal deps) OpenXml, log4net, Newtonsoft.Json</td></tr>
+          <tr><td>Spartaxx.Areas.Common</td><td>CommonInterface, BusinessObjects, BusinessService, Data.Common, DataObjects, Utilities, Paperwise</td></tr>
+          <tr><td>Spartaxx.Areas.MainScreen</td><td>Areas.Common, Areas.ClientSetup, Areas.DataAnalyst, Areas.Invoices, Areas.TA, BusinessService, DataService, Workflow</td></tr>
+          <tr><td>Spartaxx.Areas.Invoices</td><td>Areas.Common, <strong>Areas.MainScreen (circular!)</strong>, BusinessObjects, BusinessService, Data.Common, DataObjects, DataService, Utilities</td></tr>
+          <tr><td>Spartaxx.Areas.Concierge</td><td>Areas.Common, Areas.ClientSetup, Areas.DeferredMaintenance, Areas.MainScreen, BusinessObjects, BusinessService, Common.Reports, Data.Common, DataService, Utilities, Workflow</td></tr>
+          <tr><td>Spartaxx_WebAPI</td><td>(via SharedDLL) BusinessObjects, DataObjects, Utilities, Paperwise, Common.Reports, Data.Common</td></tr>
+          <tr><td>Spartaxx_AgentCommission_API</td><td>(self-contained — .NET 7, SqlClient)</td></tr>
+          <tr><td>Spartaxx_Concierge_API</td><td>(via SharedDLL) BusinessObjects, Utilities</td></tr>
+          <tr><td>Spartaxx_Sales_API</td><td>(via SharedDLL) BusinessObjects, DataObjects, Utilities</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="subsection">
+      <h3>A.2 Configuration File Locations</h3>
+      <table>
+        <thead><tr><th>File</th><th>Project</th><th>Key Contents</th></tr></thead>
+        <tbody>
+          <tr><td>Spartaxx_WebAPI/Web.config</td><td>WebAPI</td><td>Conn strings, Paperwise URL, AuthorizeURL, SMTP, DM paths</td></tr>
+          <tr><td>Spartaxx/SPARTAXX/Web.config</td><td>Main Web</td><td>Conn strings, NHibernate config, all DLL references</td></tr>
+          <tr><td>Spartaxx_AC.API/appsettings.json</td><td>AC API</td><td>Conn string (pfbadbuat), Serilog config</td></tr>
+          <tr><td>Spartaxx.Concierge.API/appsettings.json</td><td>Concierge API</td><td>Conn string (pfbadbuat)</td></tr>
+          <tr><td>Spartaxx_Sales.API/appsettings.json</td><td>Sales API</td><td>Conn string (SPXDB)</td></tr>
+          <tr><td>Spartaxx_WelcomeCall/appsettings.json</td><td>WC API</td><td>Conn string (IDCDBUAT)</td></tr>
+          <tr><td>DunningLetterBlast/App.config</td><td>Dunning</td><td>SendGrid, Twilio, Bitly keys, SMTP, service URLs</td></tr>
+          <tr><td>BlastCode/AofABlast/App.config</td><td>AofA Blast</td><td>SendGrid key, connection strings</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <strong>SpartaxxVersion1.1 Dependency Analysis Report</strong> | Generated March 12, 2026 | Full scan: 192 projects, 5,073 C# files
+</div>
+
+<script>
+function toggleSection(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+</script>
+
+</body>
+</html>
